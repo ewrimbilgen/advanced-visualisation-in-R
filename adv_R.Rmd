@@ -1,0 +1,403 @@
+---
+title: "ADV_R_project"
+author: "Evrim Bilgen (434281) & Gamze Kopal (436823)"
+date: "1/15/2022"
+output: html_document
+---
+
+
+
+## References
+● ILO
+● OECD.Stat
+● The World Bank
+● Heckman J. and Killingsworth M. (1986) ‘Female Labor Supply: A Survey. in
+Handbook of Labor Economics
+● Princeton University
+● Kaggle
+
+
+## R Markdown
+
+```{r}
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(leaflet)
+library(gapminder)
+library(stringr)
+library(lubridate)
+library(tidyverse)
+library(cowplot)
+library(colorspace)
+library(ggrepel)
+library(viridis)
+library(gganimate)
+library(ggplot2)
+library(dplyr)
+library(maps)
+library(viridis)
+library(directlabels)
+library(ggrepel)
+library(maps)
+library(RColorBrewer)
+library(forcats)
+library(ggrepel)
+library(gridExtra)
+
+hrbrthemes::import_roboto_condensed()
+
+# Upload data
+lfp <- read.csv('/Users/ewrimmm/Desktop/adR/Data/recent-ILO-LFP.csv')
+lfp_1980 <- read.csv('/Users/ewrimmm/Desktop/adR/Data/female-labor-force-participation-rates-latest-vs-1980.csv')
+ratio <- read.csv('/Users/ewrimmm/Desktop/adR/Data/ratio-of-female-to-male-labor-force-participation-rates-ILO-WDI.csv')
+informal <- read.csv('/Users/ewrimmm/Desktop/adR/Data/women-in-informal-employment-as-share-of-female-employment.csv')
+unpaid <- read.csv('/Users/ewrimmm/Desktop/adR/Data/female-to-male-ratio-of-time-devoted-to-unpaid-care-work.csv')
+scarce <- read.csv('/Users/ewrimmm/Desktop/adR/Data/share-who-agree-with-the-statement-when-jobs-are-scarce-men-should-have-more-right-to-a-job-than-women.csv')
+fertility <- read.csv('/Users/ewrimmm/Desktop/adR/Data/fertility-and-female-labor-force-participation.csv')
+
+crime <- read.csv('/Users/ewrimmm/Desktop/adR/Data/crime_female.csv')
+
+manager <- read.csv('/Users/ewrimmm/Desktop/adR/Data/female_managers.csv')
+
+emp_unem <- read.csv('/Users/ewrimmm/Desktop/adR/Data/emp&uneteR.csv')
+
+sector <- read.csv('/Users/ewrimmm/Desktop/adR/Data/bysex&sectors.csv')
+
+
+```
+
+
+# Female Labor Force Participation Rates - Regions
+```{r}
+
+regions <- c("Sub-Saharan Africa",
+             "East Asia & Pacific",
+             "North America",
+             "Latin America & Caribbean",
+             "European Union",
+             "Central Europe and the Baltics",
+             "South Asia",
+             "Middle East & North Africa")
+
+regions_lfp <- subset(lfp, Entity %in% regions)
+
+regions_lfp$label <- NA
+regions_lfp$label[which(regions_lfp$Year == max(regions_lfp$Year))] <-
+  regions_lfp$Entity[which(regions_lfp$Year == max(regions_lfp$Year))]
+
+
+ggplot(data=regions_lfp, aes(x=Year, y=LFP, group=Entity, color=Entity)) +
+  geom_line(linetype = "dashed")+
+  geom_line(aes(color=Entity))+
+  geom_point(aes(color=Entity))+
+  ggtitle("Female Labor Force Participation Rates, 1990-2019") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_label_repel(aes(label = label),
+                   nudge_x = 1,
+                   na.rm = TRUE) +
+  theme(legend.position = "none")
+```
+
+# Female Labor Force Participation Rates 1980 vs 2020
+```{r}
+ggplot(data=lfp_1980, aes(x=LFP_2020, y=LFP_1980, color=Entity, label=Entity))+
+  geom_dotplot(binaxis='y', stackdir='center', method = 'dotdensity', aes(fill=Entity))+
+  geom_text(hjust=0, vjust=0)+
+  ggtitle("Female Labor Force Participation Rates, 1980 vs 2020") +
+  xlab("Female labor force participation rate (%) in 2020") + ylab("Female labor force participation rate (%) in 1980")+
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(legend.position = "none")
+```
+
+# Female to Male Ratio in World Map
+```{r}
+world_map <- map_data(map = "world")
+world_map$region <- iso.alpha(world_map$region, n=3)
+
+ratio$count_group <- cut(ratio$FTM,
+                      breaks = c(-Inf, 30, 40, 50, 60, 70, 80, 90, 100, Inf),
+                      labels = c("30%", "40%", "50%", "60%","70%","80%", "90%", "100%", "110%"))
+
+
+ggplot(ratio) +
+  geom_map(aes(map_id = Code, fill = fct_rev(count_group)), map = world_map) +
+  geom_polygon(data = world_map, aes(x = long, y = lat, group = group), colour = 'black', fill = NA) +
+  expand_limits(x = world_map$long, y = world_map$lat) +
+  scale_fill_manual(name = "Ratios", values = rev(brewer.pal(9, name = "Purples"))) +
+  theme_void() +
+  coord_fixed() +
+  ggtitle("The Female-to-Male Ratio of Labor Force Participation Rates %, 2019") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(legend.position = "bottom")
+```
+
+
+
+# Informal Employment
+```{r}
+informal$informal= round(informal$informal,1)
+
+ggplot(data=informal, aes(x=informal, y= reorder(Entity, informal))) +
+  geom_bar(stat="identity", aes(fill=Entity)) +
+  geom_text(aes(label=informal), position=position_dodge(width=0.9), hjust=-0.1)+
+  xlab("Informal Employment Share") + ylab("Country")+
+  ggtitle("Informal employment as share of female employment, 2017") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(legend.position = "none")
+```
+
+
+
+# Unpaid Care Work
+```{r}
+colnames(unpaid)[4] <- "unpaid"
+unpaid <- unpaid[with(unpaid,order(-unpaid)),]
+
+unpaid <- unpaid[3:12,]
+
+ggplot(data=unpaid, aes(x=unpaid, y= reorder(Entity, -unpaid))) +
+  geom_bar(stat="identity", aes(fill=Entity)) +
+  geom_text(aes(label=unpaid), position=position_dodge(width=0.9), hjust=-0.1)+
+  xlab("Female-to-male unpaid care work ratio") + ylab("Country")+
+  ggtitle("Female-to-male ratio of time devoted to unpaid care work, 2014") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(legend.position = "none")
+```
+
+
+
+# Fertility
+```{r}
+ggplot(data=fertility, aes(x=birth, y=LFP, color=Entity, label=Entity))+
+  geom_dotplot(binaxis='y', stackdir='center', method = 'dotdensity', aes(fill=Entity), binwidth = 1)+
+  geom_text(hjust=0, vjust=0)+
+  ggtitle("Labor Force Participation Rates and Births, 1980 vs 2020") +
+  ylab("Female labor force participation rate (%) in 2020") + xlab("Live birth per woman")+
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(legend.position = "none")
+```
+
+
+
+# Men should have more right in employment(?)
+```{r}
+colnames(scarce)[4] <- "Yes"
+
+scarce <- scarce[with(scarce,order(-Yes)),]
+
+#scarce <- scarce[1:20,]
+
+ggplot(data = scarce, aes(x = reorder(Entity, Yes), y = Yes)) +
+  geom_bar(stat = 'identity', fill = 'purple', color = 'violet') +
+  ggtitle('Share agrees men should have more right in employment') +
+  xlab("Country") + ylab("Yes %")+
+  theme_minimal() +
+  geom_text(aes(label = Yes), vjust = -0.5, color = 'black', size = 3.2)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+#reshaping Time column
+```{r}
+emp_unem$Time <- str_replace_all(emp_unem$Time,"Q1-","")
+emp_unem$Time <- str_replace_all(emp_unem$Time,"Q2-","")
+emp_unem$Time <- str_replace_all(emp_unem$Time,"Q3-","")
+emp_unem$Time <- str_replace_all(emp_unem$Time,"Q4-","")
+```
+
+
+#reshaping IND column
+```{r}
+emp_unem$IND[emp_unem$IND == "EMP4_U"] <- "U" 
+emp_unem$IND[emp_unem$IND == "EMP4_E"] <- "E" 
+
+```
+
+
+#rename Age Group column
+```{r}
+names(emp_unem)[names(emp_unem) == 'Age.Group'] <- 'Age_Group'
+```
+
+
+
+#Disturbution of Age Group
+```{r}
+rs3 <- emp_unem %>%
+  group_by(Age_Group) %>%
+  summarise(number = n())
+
+ggplot(data = rs3, aes(x = Age_Group, y = number)) +
+  geom_bar(stat = 'identity', fill = 'purple', color = 'violet') +
+  ggtitle('Disturbution of Age Group') +
+  xlab('Age Group') +
+  ylab('Number') +
+  theme_minimal() +
+  geom_text(aes(label = number), vjust = -0.5, color = 'black', size = 2)
+```
+
+
+
+#Age Group Disturbution by Gender
+```{r}
+rs4 <- emp_unem %>%
+  group_by(Age_Group, Sex) %>%
+  summarise(number = length(Age_Group))
+
+g1 <- ggplot(data = rs4, aes(x = Age_Group, y = number, fill = factor(Sex))) +
+  geom_bar(na.rm = TRUE, position = "dodge", width = 0.5, stat = "identity") +
+  ggtitle('Age Group Disturbution by Gender', subtitle='Employed&Unemployed') +
+  xlab('Age') +
+  ylab('Population') +
+  labs(fill = 'Gender') +
+  theme_minimal()
+
+```
+
+#Finding unemployed by gender
+```{r}
+emp_unem_2 <- emp_unem %>%
+  filter(IND=='U',Time>2010)%>%
+  group_by(Age_Group,Sex,COU) %>%
+  summarise(number = n())
+
+g2 <- ggplot(data = emp_unem_2, aes(x = Age_Group, y = number, fill = factor(Sex))) +
+  geom_bar(na.rm = TRUE, position = "dodge", width = 0.5, stat = "identity") +
+  ggtitle('Age Group Disturbution by Gender', subtitle='Unemployed (Time range > 2010)') +
+  xlab('Age') +
+  ylab('Population') +
+  labs(fill = 'Gender') +
+  theme_minimal()
+
+```
+
+
+#Finding unemployed women by countries
+```{r}
+
+BigCountries <- c('TUR','FRA','POL','ESP','ISR','RUS','JPN','NOR','DEU','NLD','GBR')
+
+
+
+g3 <- emp_unem %>%
+  filter(IND=='U',Time>2010, COU %in% BigCountries) %>%
+  ggplot(aes(x=COU)) +
+  geom_bar(fill='dark blue')  +
+  # add theme_minimal()
+  theme_minimal() +
+  coord_flip()
+```
+
+```{r}
+grid.arrange(g1, g2, g3)
+```
+
+#Sector csv
+```{r}
+ds <- sector %>%
+  filter(Time > 2011)
+
+
+WesternCountries <- c('CAN','DNK','CZE','DEU','FRA','GRC','HUN','ITA','NOR','PRT')
+
+ds <- sector %>%
+  filter(COU %in% WesternCountries,Time > 2018, Sex=='Women')
+
+#country_cols <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#999999")
+```
+
+
+```{r}
+ggplot(ds, aes(x=COU, y=Value)) +
+  geom_segment( aes(x=COU, xend=COU, y=0, yend=Value), color="grey") +
+  geom_point( color="purple", size=4) +
+  theme_light() +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  ggtitle('Participate rate in the industries last 10 years') +
+  xlab("Western Countries") +
+  ylab("Participate rate")
+```
+
+
+
+```{r}
+
+sector_2 <- sector %>%
+  filter(Time>2007)%>%
+  group_by(Sex,Time) %>%
+  summarise(number = n())
+
+
+ggplot(sector_2, aes(x=Time, y=number, fill=Sex)) +
+  geom_bar(stat='identity')
+```
+
+
+#interactive -1
+```{r}
+ggplot(sector_2, aes(x=Time, y=number, fill=Sex)) +
+  geom_bar(stat='identity',colour="black") +
+  ggtitle("Female&Male Employees in the previous 10 years") +
+  ylab("Total employer") +
+  theme_bw() +
+  # gganimate specific bits:
+  transition_states(
+    Time,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  ease_aes('sine-in-out')
+
+
+  anim_save("sector-barplot-transition.gif")
+
+```
+
+
+#female managers
+
+#interactive -2
+```{r}
+MapWorld <- map_data("world")
+
+
+dd2 <- manager %>% filter(COU %in% c('DNK','CZE','DEU','FRA','GRC','HUN','ITA','NOR','POL')) 
+
+
+ggplot(dd2 , aes(x=Time, y=Value, group=Country, color=COU)) +
+  geom_line() +
+  geom_point() +
+  scale_color_viridis(discrete = TRUE) +
+  transition_reveal(Time)
+
+anim_save("Female_boss.gif")
+
+```
+
+
+#Crime
+```{r}
+crime_variables <- unique(crime$Variables)
+
+
+crime %>% filter(Region=='Europe and Central Asia')%>%
+  ggplot(aes(x = Country, y = Value,
+             fill = Variables)) +
+  geom_col(show.legend = FALSE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  facet_wrap(~Variables)
+
+```
